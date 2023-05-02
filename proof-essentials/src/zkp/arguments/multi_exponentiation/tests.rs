@@ -10,11 +10,11 @@ mod test {
     use crate::vector_commitment::{pedersen, HomomorphicCommitmentScheme};
     use crate::zkp::{arguments::multi_exponentiation, ArgumentOfKnowledge};
 
-    use ark_ff::Zero;
     use crate::utils::rand::FiatShamirRng;
+    use ark_ff::Zero;
+    use ark_std::iter::Iterator;
     use ark_std::{rand::thread_rng, UniformRand};
-    use blake2::Blake2s;
-    use std::iter::Iterator;
+    use blake2::Blake2s256;
 
     // Choose ellitptic curve setting
     type Curve = ark_bn254::G1Projective;
@@ -29,7 +29,7 @@ mod test {
     type Witness<'a> = multi_exponentiation::Witness<'a, Scalar>;
     type Statement<'a> = multi_exponentiation::Statement<'a, Scalar, Enc, Comm>;
     type MultiExpArg<'a> = multi_exponentiation::MultiExponentiation<'a, Scalar, Enc, Comm>;
-    type FS = FiatShamirRng<Blake2s>;
+    type FS = FiatShamirRng<Blake2s256>;
 
     #[test]
     fn test_multi_exp() {

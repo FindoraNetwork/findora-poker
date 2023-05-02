@@ -1,7 +1,7 @@
 use crate::error::CryptoError;
 use ark_ff::Field;
-use std::iter::Sum;
-use std::ops::Mul;
+use ark_std::iter::Sum;
+use ark_std::ops::Mul;
 
 /// Compute the dot product (inner product) of two vectors
 pub fn dot_product<S, T>(scalars: &Vec<S>, rhs: &Vec<T>) -> Result<T, CryptoError>

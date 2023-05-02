@@ -5,11 +5,11 @@ mod test {
     use crate::vector_commitment::{pedersen, HomomorphicCommitmentScheme};
     use crate::zkp::{arguments::matrix_elements_product, ArgumentOfKnowledge};
 
-    use ark_ff::One;
     use crate::utils::rand::FiatShamirRng;
+    use ark_ff::One;
+    use ark_std::iter::Iterator;
     use ark_std::{rand::thread_rng, UniformRand};
-    use blake2::Blake2s;
-    use std::iter::Iterator;
+    use blake2::Blake2s256;
 
     // Choose elliptic curve setting
     type Curve = ark_bn254::G1Projective;
@@ -22,7 +22,7 @@ mod test {
     type ProductArgument<'a> = matrix_elements_product::ProductArgument<'a, Scalar, Comm>;
     type Parameters<'a> = matrix_elements_product::Parameters<'a, Scalar, Comm>;
 
-    type FS = FiatShamirRng<Blake2s>;
+    type FS = FiatShamirRng<Blake2s256>;
 
     #[test]
     fn test_complete_product_argument() {

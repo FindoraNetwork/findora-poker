@@ -3,10 +3,10 @@ pub mod prover;
 mod tests;
 
 use crate::error::CryptoError;
+use crate::utils::rand::FiatShamirRng;
 use crate::vector_commitment::HomomorphicCommitmentScheme;
 use crate::zkp::ArgumentOfKnowledge;
 use ark_ff::Field;
-use crate::utils::rand::FiatShamirRng;
 use ark_std::marker::PhantomData;
 use ark_std::rand::Rng;
 use digest::Digest;
@@ -49,7 +49,7 @@ where
         proof: &Self::Proof,
         fs_rng: &mut FiatShamirRng<D>,
     ) -> Result<(), CryptoError> {
-        proof.verify(&common_reference_string, &statement, fs_rng)
+        proof.verify(common_reference_string, statement, fs_rng)
     }
 }
 

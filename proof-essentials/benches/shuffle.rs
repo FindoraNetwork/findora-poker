@@ -6,12 +6,12 @@ use proof_essentials::vector_commitment::{pedersen, HomomorphicCommitmentScheme}
 use proof_essentials::zkp::{arguments::shuffle, ArgumentOfKnowledge};
 
 use ark_ff::Zero;
-use crate::utils::rand::FiatShamirRng;
+use ark_std::iter::Iterator;
 use ark_std::UniformRand;
-use blake2::Blake2s;
+use blake2::Blake2s256;
 use proof_essentials::utils::permutation::Permutation;
+use proof_essentials::utils::rand::FiatShamirRng;
 use rand::rngs::OsRng;
-use std::iter::Iterator;
 
 // Choose ellitptic curve setting
 type Curve = ark_bn254::G1Projective;
@@ -28,7 +28,7 @@ type Statement<'a> = shuffle::Statement<'a, Scalar, Enc>;
 type ShuffleArgument<'a> = shuffle::ShuffleArgument<'a, Scalar, Enc, Comm>;
 type Parameters<'a> = shuffle::Parameters<'a, Scalar, Enc, Comm>;
 
-type FS = FiatShamirRng<Blake2s>;
+type FS = FiatShamirRng<Blake2s256>;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let mut rng = OsRng;

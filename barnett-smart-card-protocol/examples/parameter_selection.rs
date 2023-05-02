@@ -10,15 +10,15 @@
 //! Run the example `cargo run --example parameter_selection --release` and notice how proof size hits a minimum at m=10, n=30
 
 use anyhow::anyhow;
-use ark_ec::ProjectiveCurve;
+use ark_ec::CurveGroup;
 use ark_ff::UniformRand;
 use ark_serialize::CanonicalSerialize;
+use ark_std::time::Instant;
 use barnett_smart_card_protocol::discrete_log_cards::MaskedCard;
 use barnett_smart_card_protocol::{discrete_log_cards, BarnettSmartProtocol};
 use proof_essentials::utils::permutation::Permutation;
 use proof_essentials::utils::rand::sample_vector;
 use rand::{thread_rng, Rng};
-use std::time::Instant;
 
 // Choose elliptic curve setting
 type Curve = ark_bn254::G1Projective;
@@ -89,7 +89,7 @@ fn benchmark_parameters<R: Rng>(
     let prover_duration = prover_end_time - prover_start_time;
 
     println!("    Prover time: {} seconds", prover_duration.as_secs_f32());
-    println!("    Proof size: {} bytes\n", proof.serialized_size());
+    println!("    Proof size: {} bytes\n", proof.compressed_size());
 
     Ok(())
 }

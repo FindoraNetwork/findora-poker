@@ -5,10 +5,9 @@ use crate::utils::vector_arithmetic::dot_product;
 use crate::vector_commitment::HomomorphicCommitmentScheme;
 use crate::zkp::arguments::scalar_powers;
 
-use ark_ff::{to_bytes, Field};
 use crate::utils::rand::FiatShamirRng;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::io::{Read, Write};
+use ark_ff::Field;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use digest::Digest;
 
 #[derive(CanonicalDeserialize, CanonicalSerialize)]
@@ -53,27 +52,21 @@ where
             )));
         }
 
-        fs_rng.absorb(&to_bytes![b"zero_argument"]?);
+        fs_rng.absorb(b"zero_argument");
 
         // Public parameters
-        fs_rng.absorb(&to_bytes![
-            proof_parameters.commit_key,
-            proof_parameters.m as u32,
-            proof_parameters.n as u32
-        ]?);
+        fs_rng.absorb(proof_parameters.commit_key);
+        fs_rng.absorb(&(proof_parameters.m as u32));
+        fs_rng.absorb(&(proof_parameters.n as u32));
 
         // Random values
-        fs_rng.absorb(&to_bytes![self.a_0_commit, self.b_m_commit]?);
+        fs_rng.absorb(&self.a_0_commit);
+        fs_rng.absorb(&self.b_m_commit);
 
         // Commitments
-        fs_rng.absorb(
-            &to_bytes![
-                statement.commitment_to_a,
-                statement.commitment_to_b,
-                self.vector_of_committed_diagonals
-            ]
-            .unwrap(),
-        );
+        fs_rng.absorb(statement.commitment_to_a);
+        fs_rng.absorb(statement.commitment_to_b);
+        fs_rng.absorb(&self.vector_of_committed_diagonals);
 
         let x = Scalar::rand(fs_rng);
 
@@ -91,11 +84,7 @@ where
         // Verify commitment to A against a commitment on blinded a with blinded random r
         let left: Comm::Commitment =
             self.a_0_commit + dot_product(&first_m_non_zero_powers, statement.commitment_to_a)?;
-        let right = Comm::commit(
-            &proof_parameters.commit_key,
-            &self.a_blinded,
-            self.r_blinded,
-        )?;
+        let right = Comm::commit(proof_parameters.commit_key, &self.a_blinded, self.r_blinded)?;
         if left != right {
             return Err(CryptoError::ProofVerificationError(String::from(
                 "Zero Argument (5.2)",
@@ -105,11 +94,7 @@ where
         // Verify commitment to B against a commitment on blinded b with blinded random s
         let left = self.b_m_commit
             + dot_product(&first_m_non_zero_powers_reversed, statement.commitment_to_b)?;
-        let right = Comm::commit(
-            &proof_parameters.commit_key,
-            &self.b_blinded,
-            self.s_blinded,
-        )?;
+        let right = Comm::commit(proof_parameters.commit_key, &self.b_blinded, self.s_blinded)?;
         if left != right {
             return Err(CryptoError::ProofVerificationError(String::from(
                 "Zero Argument (5.2)",

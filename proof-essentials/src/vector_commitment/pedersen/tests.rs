@@ -3,8 +3,8 @@ mod test {
     use crate::utils::rand::sample_vector;
     use crate::vector_commitment::{pedersen, HomomorphicCommitmentScheme};
     use ark_ff::Zero;
+    use ark_std::ops::Mul;
     use ark_std::{rand::thread_rng, UniformRand};
-    use std::ops::Mul;
 
     // Define type aliases for succinctness
     type Curve = ark_bn254::G1Projective;

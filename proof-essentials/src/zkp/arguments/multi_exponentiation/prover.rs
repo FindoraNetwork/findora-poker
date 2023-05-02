@@ -7,11 +7,11 @@ use crate::utils::{rand::sample_vector, vector_arithmetic::dot_product};
 use crate::vector_commitment::HomomorphicCommitmentScheme;
 use crate::zkp::arguments::scalar_powers;
 
-use ark_ff::{to_bytes, Field, Zero};
 use crate::utils::rand::FiatShamirRng;
+use ark_ff::{Field, Zero};
+use ark_std::marker::PhantomData;
 use ark_std::rand::Rng;
 use digest::Digest;
-use std::marker::PhantomData;
 
 pub struct Prover<'a, Scalar, Enc, Comm>
 where
@@ -52,23 +52,20 @@ where
         rng: &mut R,
         fs_rng: &mut FiatShamirRng<D>,
     ) -> Result<Proof<Scalar, Enc, Comm>, CryptoError> {
-        fs_rng.absorb(
-            &to_bytes![
-                b"multi-exponentiation",
-                self.parameters.public_key,
-                self.parameters.commit_key,
-                self.statement.commitments_to_exponents,
-                &self.statement.product,
-                self.statement.shuffled_ciphers
-            ]
-            .unwrap(),
-        );
+        fs_rng.absorb(b"multi-exponentiation");
+        fs_rng.absorb(self.parameters.public_key);
+        fs_rng.absorb(self.parameters.commit_key);
+        fs_rng.absorb(self.statement.commitments_to_exponents);
+        fs_rng.absorb(&self.statement.product);
+        fs_rng.absorb(self.statement.shuffled_ciphers);
 
         let m = self.witness.matrix_a.len();
         let n = self.witness.matrix_a[0].len();
         let num_of_diagonals = 2 * m - 1;
 
-        fs_rng.absorb(&to_bytes![m as u32, n as u32, num_of_diagonals as u32]?);
+        fs_rng.absorb(&(m as u32));
+        fs_rng.absorb(&(n as u32));
+        fs_rng.absorb(&(num_of_diagonals as u32));
 
         let a_0: Vec<Scalar> = sample_vector(rng, n);
         let r_0 = Scalar::rand(rng);
@@ -81,7 +78,7 @@ where
         s[m] = Scalar::zero();
         tau[m] = self.witness.rho;
 
-        let a_0_commit = Comm::commit(&self.parameters.commit_key, &a_0, r_0)?;
+        let a_0_commit = Comm::commit(self.parameters.commit_key, &a_0, r_0)?;
 
         let commit_b_k = b
             .iter()
@@ -93,8 +90,8 @@ where
             .collect::<Result<Vec<Comm::Commitment>, CryptoError>>()?;
 
         let diagonals = Self::diagonals_from_chunks(
-            &self.statement.shuffled_ciphers,
-            &self.witness.matrix_a,
+            self.statement.shuffled_ciphers,
+            self.witness.matrix_a,
             &a_0,
         )
         .unwrap();
@@ -107,7 +104,7 @@ where
                 let message = *self.parameters.generator * b_k;
 
                 let encrypted_random = Enc::encrypt(
-                    &self.parameters.encrypt_parameters,
+                    self.parameters.encrypt_parameters,
                     self.parameters.public_key,
                     &message,
                     tau_k,
@@ -123,7 +120,9 @@ where
             })
             .collect::<Vec<Enc::Ciphertext>>();
 
-        fs_rng.absorb(&to_bytes![a_0_commit, commit_b_k, vector_e_k]?);
+        fs_rng.absorb(&a_0_commit);
+        fs_rng.absorb(&commit_b_k);
+        fs_rng.absorb(&vector_e_k);
 
         let challenge = Scalar::rand(fs_rng);
 
@@ -157,12 +156,12 @@ where
         for i in 0..n {
             let mut poly = a_0[i];
             for j in 0..m {
-                poly = poly + scalar_products_ax[j][i];
+                poly += scalar_products_ax[j][i];
             }
             a_blinded.push(poly);
         }
 
-        let r_blinded = r_0 + dot_product(&self.witness.matrix_blinders, &x_array)?;
+        let r_blinded = r_0 + dot_product(self.witness.matrix_blinders, &x_array)?;
         let b_blinded = dot_product(&b, &challenge_powers)?;
         let s_blinded = dot_product(&s, &challenge_powers)?;
         let tau_blinded = dot_product(&tau, &challenge_powers)?;
@@ -194,10 +193,10 @@ where
 
         let mut diagonal_sums: Vec<Enc::Ciphertext> =
             vec![Enc::Ciphertext::zero(); num_of_diagonals];
-        let center = num_of_diagonals / 2 as usize;
+        let center = num_of_diagonals / 2_usize;
 
         for d in 1..m {
-            let additional_randomness = dot_product(&a_0_randomness, &cipher_chunks[d - 1])?;
+            let additional_randomness = dot_product(a_0_randomness, &cipher_chunks[d - 1])?;
             let mut tmp_product1 = Enc::Ciphertext::zero();
             let mut tmp_product2 = Enc::Ciphertext::zero();
             for i in d..m {
@@ -236,7 +235,7 @@ where
 
         diagonal_sums[center] = product;
 
-        let zeroth_diagonal = dot_product(&a_0_randomness, &cipher_chunks.last().unwrap())?;
+        let zeroth_diagonal = dot_product(a_0_randomness, cipher_chunks.last().unwrap())?;
         diagonal_sums.insert(0, zeroth_diagonal);
 
         Ok(diagonal_sums)

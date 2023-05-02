@@ -1,14 +1,14 @@
 use anyhow::Ok;
-use ark_ec::short_weierstrass_jacobian::GroupAffine;
-use ark_ff::Fp256;
 use ark_serialize::CanonicalDeserialize;
 use ark_serialize::CanonicalSerialize;
 use barnett_smart_card_protocol::discrete_log_cards;
 use barnett_smart_card_protocol::BarnettSmartProtocol;
 
 use anyhow;
-use ark_bn254::FrParameters;
-use ark_ff::{to_bytes, UniformRand};
+use ark_ff::UniformRand;
+use ark_std::cmp;
+use ark_std::collections::HashMap;
+use ark_std::iter::Iterator;
 use ark_std::{rand::Rng, One};
 use proof_essentials::homomorphic_encryption::el_gamal::ElGamal;
 use proof_essentials::utils::permutation::Permutation;
@@ -18,9 +18,6 @@ use proof_essentials::zkp::arguments::shuffle::proof::Proof;
 use proof_essentials::zkp::proofs::{chaum_pedersen_dl_equality, schnorr_identification};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use std::cmp;
-use std::collections::HashMap;
-use std::iter::Iterator;
 use thiserror::Error;
 
 // Choose elliptic curve setting
@@ -32,14 +29,14 @@ type CardProtocol<'a> = discrete_log_cards::DLCards<'a, Curve>;
 type CardParameters = discrete_log_cards::Parameters<Curve>;
 type PublicKey = discrete_log_cards::PublicKey<Curve>;
 type SecretKey = discrete_log_cards::PlayerSecretKey<Curve>;
-type AggregatePublicKey = GroupAffine<ark_bn254::g1::Parameters>;
+type AggregatePublicKey = ark_bn254::G1Affine;
 
 type Card = discrete_log_cards::Card<Curve>;
 type MaskedCard = discrete_log_cards::MaskedCard<Curve>;
 type RevealToken = discrete_log_cards::RevealToken<Curve>;
 
 type ProofKeyOwnership = schnorr_identification::proof::Proof<Curve>;
-type ShuffleProof = Proof<Fp256<FrParameters>, ElGamal<Curve>, PedersenCommitment<Curve>>;
+type ShuffleProof = Proof<ark_bn254::Fr, ElGamal<Curve>, PedersenCommitment<Curve>>;
 type RemaskingProof = chaum_pedersen_dl_equality::proof::Proof<Curve>;
 type RevealProof = chaum_pedersen_dl_equality::proof::Proof<Curve>;
 
@@ -337,12 +334,12 @@ fn main() -> anyhow::Result<()> {
 
     // Each player creates a game key offline to `joinGame()` and smart contract run `verify_key_ownship()` on chain.
     // Note: If a game key is securely stored, it can be reused; however, if the key is leaked, it must be replaced.
-    let mut andrija = Player::new(rng, &parameters, &to_bytes![b"Andrija"].unwrap())?;
-    let mut kobi = Player::new(rng, &parameters, &to_bytes![b"Kobi"].unwrap())?;
-    let mut nico = Player::new(rng, &parameters, &to_bytes![b"Nico"].unwrap())?;
-    let mut tom = Player::new(rng, &parameters, &to_bytes![b"Tom"].unwrap())?;
-    let mut jay = Player::new(rng, &parameters, &to_bytes![b"Jay"].unwrap())?;
-    let mut bob = Player::new(rng, &parameters, &to_bytes![b"Bob"].unwrap())?;
+    let mut andrija = Player::new(rng, &parameters, &b"Andrija".to_vec())?;
+    let mut kobi = Player::new(rng, &parameters, &b"Kobi".to_vec())?;
+    let mut nico = Player::new(rng, &parameters, &b"Nico".to_vec())?;
+    let mut tom = Player::new(rng, &parameters, &b"Tom".to_vec())?;
+    let mut jay = Player::new(rng, &parameters, &b"Jay".to_vec())?;
+    let mut bob = Player::new(rng, &parameters, &b"Bob".to_vec())?;
 
     // Smart contract computes aggregation key on chain once all players have joined the game
     let players = vec![
@@ -370,9 +367,9 @@ fn main() -> anyhow::Result<()> {
         .iter()
         .map(|vdeck_and_proofs| {
             let mut proof = vdeck_and_proofs.1;
-            let mut data = Vec::with_capacity(proof.serialized_size());
-            proof.serialize(&mut data).unwrap();
-            proof = CanonicalDeserialize::deserialize(data.as_slice()).unwrap();
+            let mut data = Vec::with_capacity(proof.compressed_size());
+            proof.serialize_compressed(&mut data).unwrap();
+            proof = CanonicalDeserialize::deserialize_compressed(data.as_slice()).unwrap();
             (vdeck_and_proofs.0, proof.clone())
         })
         .collect();

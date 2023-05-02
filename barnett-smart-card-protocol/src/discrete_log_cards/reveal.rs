@@ -1,12 +1,12 @@
 use crate::discrete_log_cards::RevealToken;
 use crate::error::CardProtocolError;
 use crate::Reveal;
+use ark_ec::CurveGroup;
 
-use ark_ec::ProjectiveCurve;
 use ark_ff::One;
 use proof_essentials::homomorphic_encryption::{el_gamal, el_gamal::ElGamal};
 
-impl<C: ProjectiveCurve> Reveal<C::ScalarField, ElGamal<C>> for RevealToken<C> {
+impl<C: CurveGroup> Reveal<C::ScalarField, ElGamal<C>> for RevealToken<C> {
     fn reveal(
         &self,
         cipher: &el_gamal::Ciphertext<C>,
@@ -58,9 +58,9 @@ mod test {
             CardProtocol::compute_reveal_token(rng, &parameters, &sk, &pk, &some_masked_card)
                 .unwrap();
 
-        let mut data = Vec::with_capacity(reveal_proof.serialized_size());
-        reveal_proof.serialize(&mut data).unwrap();
-        reveal_proof = CanonicalDeserialize::deserialize(data.as_slice()).unwrap();
+        let mut data = Vec::with_capacity(reveal_proof.compressed_size());
+        reveal_proof.serialize_compressed(&mut data).unwrap();
+        reveal_proof = CanonicalDeserialize::deserialize_compressed(data.as_slice()).unwrap();
 
         assert_eq!(
             Ok(()),

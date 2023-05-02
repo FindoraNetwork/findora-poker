@@ -1,9 +1,9 @@
 use crate::error::CryptoError;
-use ark_ff::{Field, ToBytes, Zero};
+use ark_ff::{Field, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::iter::Sum;
+use ark_std::ops;
 use ark_std::rand::Rng;
-use std::iter::Sum;
-use std::ops;
 
 pub mod el_gamal;
 
@@ -11,7 +11,7 @@ pub mod el_gamal;
 /// The scheme is defined with respect to a finite field `F` for which scalar multiplication is preserved.
 pub trait HomomorphicEncryptionScheme<Scalar: Field> {
     type Parameters: CanonicalSerialize + CanonicalDeserialize;
-    type PublicKey: CanonicalSerialize + CanonicalDeserialize + ToBytes;
+    type PublicKey: CanonicalSerialize + CanonicalDeserialize;
     type SecretKey: CanonicalSerialize + CanonicalDeserialize;
     type Generator: Copy
         + ops::Add
@@ -37,8 +37,7 @@ pub trait HomomorphicEncryptionScheme<Scalar: Field> {
         + CanonicalSerialize
         + CanonicalDeserialize
         + Sum
-        + Zero
-        + ToBytes;
+        + Zero;
 
     /// Generate the scheme's parameters.
     fn setup<R: Rng>(rng: &mut R) -> Result<Self::Parameters, CryptoError>;

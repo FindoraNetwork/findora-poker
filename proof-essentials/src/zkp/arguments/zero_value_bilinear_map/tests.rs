@@ -7,11 +7,11 @@ mod test {
     use crate::zkp::{arguments::zero_value_bilinear_map, ArgumentOfKnowledge};
 
     use super::super::YMapping;
-    use ark_ff::Zero;
     use crate::utils::rand::FiatShamirRng;
+    use ark_ff::Zero;
+    use ark_std::iter::Iterator;
     use ark_std::{rand::thread_rng, UniformRand};
-    use blake2::Blake2s;
-    use std::iter::Iterator;
+    use blake2::Blake2s256;
 
     // Choose elliptic curve setting
     type Curve = ark_bn254::G1Projective;
@@ -25,7 +25,7 @@ mod test {
     type Parameters<'a> = zero_value_bilinear_map::Parameters<'a, Scalar, Comm>;
 
     // Fiat Shamir
-    type FS = FiatShamirRng<Blake2s>;
+    type FS = FiatShamirRng<Blake2s256>;
 
     #[test]
     fn test_zero_argument() {

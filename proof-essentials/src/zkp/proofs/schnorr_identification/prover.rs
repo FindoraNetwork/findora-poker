@@ -2,25 +2,25 @@ use crate::error::CryptoError;
 
 use super::{proof::Proof, Parameters, Statement, Witness};
 
-use ark_ec::{AffineCurve, ProjectiveCurve};
-use ark_ff::{to_bytes, PrimeField};
 use crate::utils::rand::FiatShamirRng;
+use ark_ff::PrimeField;
 use ark_std::rand::Rng;
 use ark_std::UniformRand;
 use digest::Digest;
 
-use std::marker::PhantomData;
+use ark_ec::{AffineRepr, CurveGroup};
+use ark_std::marker::PhantomData;
 
 pub struct Prover<C>
 where
-    C: ProjectiveCurve,
+    C: CurveGroup,
 {
     phantom: PhantomData<C>,
 }
 
 impl<C> Prover<C>
 where
-    C: ProjectiveCurve,
+    C: CurveGroup,
 {
     pub fn create_proof<R: Rng, D: Digest>(
         rng: &mut R,
@@ -31,14 +31,12 @@ where
     ) -> Result<Proof<C>, CryptoError> {
         let random = C::ScalarField::rand(rng);
 
-        let random_commit = pp.mul(random.into_repr()).into();
+        let random_commit = pp.mul_bigint(random.into_bigint()).into();
 
-        fs_rng.absorb(&to_bytes![
-            b"schnorr_identity",
-            pp,
-            statement,
-            random_commit
-        ]?);
+        fs_rng.absorb(b"schnorr_identity");
+        fs_rng.absorb(pp);
+        fs_rng.absorb(statement);
+        fs_rng.absorb(&random_commit);
 
         let c = C::ScalarField::rand(fs_rng);
 

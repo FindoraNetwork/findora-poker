@@ -5,10 +5,9 @@ use crate::vector_commitment::HomomorphicCommitmentScheme;
 use crate::zkp::arguments::{zero_value_bilinear_map, zero_value_bilinear_map::YMapping};
 use crate::zkp::{arguments::scalar_powers, ArgumentOfKnowledge};
 
-use ark_ff::{to_bytes, Field, Zero};
 use crate::utils::rand::FiatShamirRng;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::io::{Read, Write};
+use ark_ff::{Field, Zero};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use digest::Digest;
 
 #[derive(CanonicalDeserialize, CanonicalSerialize)]
@@ -35,7 +34,7 @@ where
         statement: &Statement<Scalar, Comm>,
         fs_rng: &mut FiatShamirRng<D>,
     ) -> Result<(), CryptoError> {
-        fs_rng.absorb(&to_bytes![b"hadamard_product_argument"]?);
+        fs_rng.absorb(b"hadamard_product_argument");
 
         // check c_b_1 = c_a_1
         if statement.commitment_to_a[0] != self.b_commits[0] {
@@ -52,14 +51,12 @@ where
         }
 
         // Public parameters
-        fs_rng.absorb(&to_bytes![
-            proof_parameters.commit_key,
-            proof_parameters.m as u32,
-            proof_parameters.n as u32
-        ]?);
+        fs_rng.absorb(proof_parameters.commit_key);
+        fs_rng.absorb(&(proof_parameters.m as u32));
+        fs_rng.absorb(&(proof_parameters.n as u32));
 
         // Committed values
-        fs_rng.absorb(&to_bytes![self.b_commits]?);
+        fs_rng.absorb(&self.b_commits);
 
         // Extract challenges
         let x = Scalar::rand(fs_rng);

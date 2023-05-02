@@ -9,8 +9,8 @@ use crate::zkp::arguments::scalar_powers;
 use crate::zkp::arguments::{matrix_elements_product as product_argument, multi_exponentiation};
 use crate::zkp::ArgumentOfKnowledge;
 
-use ark_ff::{to_bytes, Field, Zero};
 use crate::utils::rand::FiatShamirRng;
+use ark_ff::{Field, Zero};
 use digest::Digest;
 use rand::Rng;
 
@@ -49,7 +49,7 @@ where
         rng: &mut R,
         fs_rng: &mut FiatShamirRng<D>,
     ) -> Result<Proof<Scalar, Enc, Comm>, CryptoError> {
-        fs_rng.absorb(&to_bytes![b"shuffle_argument"]?);
+        fs_rng.absorb(b"shuffle_argument");
 
         let r: Vec<Scalar> = sample_vector(rng, self.statement.m);
 
@@ -68,24 +68,17 @@ where
             .collect::<Result<Vec<_>, CryptoError>>()?;
 
         // Public data
-        fs_rng.absorb(&to_bytes![
-            self.parameters.public_key,
-            self.parameters.commit_key
-        ]?);
+        fs_rng.absorb(self.parameters.public_key);
+        fs_rng.absorb(self.parameters.commit_key);
 
         // statement
-        fs_rng.absorb(
-            &to_bytes![
-                self.statement.input_ciphers,
-                self.statement.shuffled_ciphers,
-                self.statement.m as u32,
-                self.statement.n as u32
-            ]
-            .unwrap(),
-        );
+        fs_rng.absorb(self.statement.input_ciphers);
+        fs_rng.absorb(self.statement.shuffled_ciphers);
+        fs_rng.absorb(&(self.statement.m as u32));
+        fs_rng.absorb(&(self.statement.n as u32));
 
         // round 1
-        fs_rng.absorb(&to_bytes![a_commits]?);
+        fs_rng.absorb(&a_commits);
         let x = Scalar::rand(fs_rng);
 
         let challenge_powers = scalar_powers(x, self.witness.permutation.size)[1..].to_vec();
@@ -105,7 +98,7 @@ where
             .collect::<Result<Vec<_>, CryptoError>>()?;
 
         //round 2
-        fs_rng.absorb(&to_bytes![b_commits]?);
+        fs_rng.absorb(&b_commits);
         let y = Scalar::rand(fs_rng);
         let z = Scalar::rand(fs_rng);
 

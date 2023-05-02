@@ -1,55 +1,35 @@
 use crate::error::CryptoError;
 use crate::vector_commitment::HomomorphicCommitmentScheme;
 
-use ark_ec::{msm::VariableBaseMSM, ProjectiveCurve};
-use ark_ff::{PrimeField, ToBytes};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::{
-    io::{Read, Write},
-    marker::PhantomData,
-};
+use ark_ec::CurveGroup;
+use ark_ff::PrimeField;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::marker::PhantomData;
 use rand::Rng;
 
 pub mod arithmetic_definitions;
 mod tests;
 
-pub struct PedersenCommitment<C: ProjectiveCurve> {
+pub struct PedersenCommitment<C: CurveGroup> {
     _curve: PhantomData<C>,
 }
 
 #[derive(Clone, CanonicalSerialize, CanonicalDeserialize, Debug)]
-pub struct CommitKey<C: ProjectiveCurve> {
+pub struct CommitKey<C: CurveGroup> {
     g: Vec<C::Affine>,
     h: C::Affine,
 }
 
-impl<C: ProjectiveCurve> CommitKey<C> {
+impl<C: CurveGroup> CommitKey<C> {
     pub fn new(g: Vec<C::Affine>, h: C::Affine) -> Self {
         Self { g, h }
     }
 }
 
-impl<C: ProjectiveCurve> ToBytes for CommitKey<C> {
-    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
-        self.g.write(&mut w)?;
-        self.h.write(&mut w)?;
-
-        Ok(())
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
-pub struct Commitment<C: ProjectiveCurve>(pub C::Affine);
+pub struct Commitment<C: CurveGroup>(pub C::Affine);
 
-impl<C: ProjectiveCurve> ToBytes for Commitment<C> {
-    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
-        self.0.write(&mut w)?;
-
-        Ok(())
-    }
-}
-
-impl<C: ProjectiveCurve> HomomorphicCommitmentScheme<C::ScalarField> for PedersenCommitment<C> {
+impl<C: CurveGroup> HomomorphicCommitmentScheme<C::ScalarField> for PedersenCommitment<C> {
     type CommitKey = CommitKey<C>;
     type Commitment = Commitment<C>;
 
@@ -78,13 +58,13 @@ impl<C: ProjectiveCurve> HomomorphicCommitmentScheme<C::ScalarField> for Pederse
         let scalars = [&[r], x.as_slice()]
             .concat()
             .iter()
-            .map(|x| x.into_repr())
+            .map(|x| x.into_bigint())
             .collect::<Vec<_>>();
 
         let bases = [&[commit_key.h], &commit_key.g[..]].concat();
 
         Ok(Commitment(
-            VariableBaseMSM::multi_scalar_mul(&bases, &scalars[..]).into_affine(),
+            C::msm_bigint(&bases, &scalars[..]).into_affine(),
         ))
     }
 }

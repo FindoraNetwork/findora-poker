@@ -5,11 +5,11 @@ use crate::error::CryptoError;
 use crate::utils::rand::sample_vector;
 use crate::vector_commitment::HomomorphicCommitmentScheme;
 
-use ark_ff::{to_bytes, Field};
 use crate::utils::rand::FiatShamirRng;
+use ark_ff::Field;
+use ark_std::iter;
 use ark_std::rand::Rng;
 use digest::Digest;
-use std::iter;
 
 pub struct Prover<'a, Scalar, Comm>
 where
@@ -43,7 +43,7 @@ where
         rng: &mut R,
         fs_rng: &mut FiatShamirRng<D>,
     ) -> Result<Proof<Scalar, Comm>, CryptoError> {
-        fs_rng.absorb(&to_bytes![b"single_value_product_argument"]?);
+        fs_rng.absorb(b"single_value_product_argument");
 
         // generate vector b
         let b: Vec<Scalar> = iter::once(self.witness.a[0])
@@ -71,7 +71,7 @@ where
         let s_1 = Scalar::rand(rng);
         let s_x = Scalar::rand(rng);
 
-        let d_commit = Comm::commit(&self.parameters.commit_key, &d, r_d)?;
+        let d_commit = Comm::commit(self.parameters.commit_key, &d, r_d)?;
 
         let minus_one = -Scalar::one();
         let delta_ds = deltas
@@ -81,7 +81,7 @@ where
             .map(|(delta, d)| minus_one * delta * d)
             .collect::<Vec<_>>();
 
-        let delta_commit = Comm::commit(&self.parameters.commit_key, &delta_ds, s_1)?;
+        let delta_commit = Comm::commit(self.parameters.commit_key, &delta_ds, s_1)?;
 
         // skip frist a, skip first d, skip last b, and use all deltas
         let diffs = self
@@ -100,20 +100,20 @@ where
             )
             .collect::<Vec<_>>();
 
-        let diff_commit = Comm::commit(&self.parameters.commit_key, &diffs, s_x)?;
+        let diff_commit = Comm::commit(self.parameters.commit_key, &diffs, s_x)?;
 
-        //public information
-        fs_rng.absorb(&to_bytes![
-            self.parameters.commit_key,
-            self.statement.a_commit
-        ]?);
+        // public information
+        fs_rng.absorb(self.parameters.commit_key);
+        fs_rng.absorb(self.statement.a_commit);
 
-        //commits
-        fs_rng.absorb(&to_bytes![d_commit, delta_commit, diff_commit]?);
+        // commits
+        fs_rng.absorb(&d_commit);
+        fs_rng.absorb(&delta_commit);
+        fs_rng.absorb(&diff_commit);
 
         let x = Scalar::rand(fs_rng);
 
-        let a_blinded = Self::blind(&self.witness.a, &d, x);
+        let a_blinded = Self::blind(self.witness.a, &d, x);
         let r_blinded = x * self.witness.random_for_a_commit + r_d;
 
         let b_blinded = Self::blind(&b, &deltas, x);

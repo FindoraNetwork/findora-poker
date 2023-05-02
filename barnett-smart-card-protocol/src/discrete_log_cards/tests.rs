@@ -4,14 +4,15 @@ mod test {
     use crate::error::CardProtocolError;
     use crate::BarnettSmartProtocol;
 
+    use ark_ec::{AffineRepr, CurveGroup};
     use ark_ff::UniformRand;
     use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-    use ark_std::{rand::Rng, Zero};
+    use ark_std::iter::Iterator;
+    use ark_std::rand::Rng;
     use proof_essentials::error::CryptoError;
     use proof_essentials::utils::permutation::Permutation;
     use proof_essentials::utils::rand::sample_vector;
     use rand::thread_rng;
-    use std::iter::Iterator;
 
     // Choose elliptic curve setting
     type Curve = ark_bn254::G1Projective;
@@ -34,7 +35,8 @@ mod test {
         num_of_players: usize,
     ) -> (Vec<(PublicKey, SecretKey, Scalar)>, PublicKey) {
         let mut players: Vec<(PublicKey, SecretKey, Scalar)> = Vec::with_capacity(num_of_players);
-        let mut expected_shared_key = PublicKey::zero();
+
+        let mut expected_shared_key = PublicKey::zero().into_group();
 
         for i in 0..num_of_players {
             let (pk, sk) = CardProtocol::player_keygen(rng, &parameters).unwrap();
@@ -43,7 +45,7 @@ mod test {
             expected_shared_key = expected_shared_key + players[i].0
         }
 
-        (players, expected_shared_key)
+        (players, expected_shared_key.into_affine())
     }
 
     #[test]
@@ -58,24 +60,24 @@ mod test {
         let player_name = b"Alice";
 
         let mut p1_keyproof =
-            CardProtocol::prove_key_ownership(rng, &parameters, &pk, &sk, &player_name).unwrap();
+            CardProtocol::prove_key_ownership(rng, &parameters, &pk, &sk, player_name).unwrap();
 
-        let mut data = Vec::with_capacity(p1_keyproof.serialized_size());
-        p1_keyproof.serialize(&mut data).unwrap();
-        p1_keyproof = CanonicalDeserialize::deserialize(data.as_slice()).unwrap();
+        let mut data = Vec::with_capacity(p1_keyproof.compressed_size());
+        p1_keyproof.serialize_compressed(&mut data).unwrap();
+        p1_keyproof = CanonicalDeserialize::deserialize_compressed(data.as_slice()).unwrap();
 
         assert_eq!(
             Ok(()),
-            CardProtocol::verify_key_ownership(&parameters, &pk, &player_name, &p1_keyproof)
+            CardProtocol::verify_key_ownership(&parameters, &pk, player_name, &p1_keyproof)
         );
 
         let other_key = Scalar::rand(rng);
         let wrong_proof =
-            CardProtocol::prove_key_ownership(rng, &parameters, &pk, &other_key, &player_name)
+            CardProtocol::prove_key_ownership(rng, &parameters, &pk, &other_key, player_name)
                 .unwrap();
 
         assert_eq!(
-            CardProtocol::verify_key_ownership(&parameters, &pk, &player_name, &wrong_proof),
+            CardProtocol::verify_key_ownership(&parameters, &pk, player_name, &wrong_proof),
             Err(CryptoError::ProofVerificationError(String::from(
                 "Schnorr Identification"
             )))
@@ -108,17 +110,17 @@ mod test {
             .map(|(player, &proof)| (player.0, proof.clone(), player.2))
             .collect::<Vec<(PublicKey, _, _)>>();
 
-        let mut data = Vec::with_capacity(key_proof_info.serialized_size());
-        key_proof_info.serialize(&mut data).unwrap();
-        key_proof_info = CanonicalDeserialize::deserialize(data.as_slice()).unwrap();
+        let mut data = Vec::with_capacity(key_proof_info.compressed_size());
+        key_proof_info.serialize_compressed(&mut data).unwrap();
+        key_proof_info = CanonicalDeserialize::deserialize_compressed(data.as_slice()).unwrap();
 
         key_proof_info = key_proof_info
             .iter()
             .map(|vkey_proof_info| {
                 let mut proof = vkey_proof_info.1;
-                let mut data = Vec::with_capacity(proof.serialized_size());
-                proof.serialize(&mut data).unwrap();
-                proof = CanonicalDeserialize::deserialize(data.as_slice()).unwrap();
+                let mut data = Vec::with_capacity(proof.compressed_size());
+                proof.serialize_compressed(&mut data).unwrap();
+                proof = CanonicalDeserialize::deserialize_compressed(data.as_slice()).unwrap();
                 (vkey_proof_info.0, proof.clone(), vkey_proof_info.2)
             })
             .collect();
@@ -219,9 +221,9 @@ mod test {
         )
         .unwrap();
 
-        let mut data = Vec::with_capacity(shuffle_proof.serialized_size());
-        shuffle_proof.serialize(&mut data).unwrap();
-        shuffle_proof = CanonicalDeserialize::deserialize(data.as_slice()).unwrap();
+        let mut data = Vec::with_capacity(shuffle_proof.compressed_size());
+        shuffle_proof.serialize_compressed(&mut data).unwrap();
+        shuffle_proof = CanonicalDeserialize::deserialize_compressed(data.as_slice()).unwrap();
 
         assert_eq!(
             Ok(()),

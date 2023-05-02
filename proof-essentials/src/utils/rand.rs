@@ -1,9 +1,9 @@
+use ark_serialize::{CanonicalSerialize, Compress};
 use ark_std::marker::PhantomData;
+use ark_std::rand::{Rng, RngCore, SeedableRng};
 use ark_std::UniformRand;
-use digest::Digest;
 use digest::generic_array::GenericArray;
-use ark_std::rand::{Rng, SeedableRng, RngCore};
-use ark_ff::{ToBytes, FromBytes};
+use digest::Digest;
 use rand_chacha::ChaChaRng;
 
 /// Sample a vector of random elements of type T
@@ -40,7 +40,8 @@ impl<D: Digest> RngCore for FiatShamirRng<D> {
 
     #[inline]
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), ark_std::rand::Error> {
-        Ok(self.r.fill_bytes(dest))
+        self.r.fill_bytes(dest);
+        Ok(())
     }
 }
 
@@ -48,11 +49,13 @@ impl<D: Digest> FiatShamirRng<D> {
     /// Create a new `Self` by initializing with a fresh seed.
     /// `self.seed = H(self.seed || new_seed)`.
     #[inline]
-    pub fn from_seed<'a, T: 'a + ToBytes>(seed: &'a T) -> Self {
+    pub fn from_seed<'a, T: 'a + CanonicalSerialize>(seed: &'a T) -> Self {
         let mut bytes = Vec::new();
-        seed.write(&mut bytes).expect("failed to convert to bytes");
+        seed.serialize_with_mode(&mut bytes, Compress::Yes)
+            .expect("failed to convert to bytes");
         let seed = D::digest(&bytes);
-        let r_seed: [u8; 32] = FromBytes::read(seed.as_ref()).expect("failed to get [u32; 8]");
+        let mut r_seed = [0u8; 32];
+        r_seed.copy_from_slice(seed.as_ref());
         let r = ChaChaRng::from_seed(r_seed);
         Self {
             r,
@@ -64,12 +67,14 @@ impl<D: Digest> FiatShamirRng<D> {
     /// Refresh `self.seed` with new material. Achieved by setting
     /// `self.seed = H(self.seed || new_seed)`.
     #[inline]
-    pub fn absorb<'a, T: 'a + ToBytes>(&mut self, seed: &'a T) {
+    pub fn absorb<'a, T: 'a + CanonicalSerialize>(&mut self, seed: &'a T) {
         let mut bytes = Vec::new();
-        seed.write(&mut bytes).expect("failed to convert to bytes");
+        seed.serialize_with_mode(&mut bytes, Compress::Yes)
+            .expect("failed to convert to bytes");
         bytes.extend_from_slice(&self.seed);
         self.seed = D::digest(&bytes);
-        let seed: [u8; 32] = FromBytes::read(self.seed.as_ref()).expect("failed to get [u32; 8]");
+        let mut seed = [0u8; 32];
+        seed.copy_from_slice(self.seed.as_ref());
         self.r = ChaChaRng::from_seed(seed);
     }
 }

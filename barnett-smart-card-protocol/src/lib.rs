@@ -1,14 +1,14 @@
 use crate::error::CardProtocolError;
 
-use ark_ff::{Field, ToBytes};
+use ark_ff::Field;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::hash::Hash;
+use ark_std::ops::{Add, Mul};
 use ark_std::rand::Rng;
 use proof_essentials::error::CryptoError;
 use proof_essentials::homomorphic_encryption::HomomorphicEncryptionScheme;
 use proof_essentials::utils::permutation::Permutation;
 use proof_essentials::vector_commitment::HomomorphicCommitmentScheme;
-use std::hash::Hash;
-use std::ops::{Add, Mul};
 
 pub mod discrete_log_cards;
 pub mod error;
@@ -84,7 +84,7 @@ pub trait BarnettSmartProtocol {
     ) -> Result<(Self::PlayerPublicKey, Self::PlayerSecretKey), CardProtocolError>;
 
     /// Prove in zero knowledge that the owner of a public key `pk` knows the corresponding secret key `sk`
-    fn prove_key_ownership<B: ToBytes, R: Rng>(
+    fn prove_key_ownership<B: CanonicalSerialize, R: Rng>(
         rng: &mut R,
         pp: &Self::Parameters,
         pk: &Self::PlayerPublicKey,
@@ -93,7 +93,7 @@ pub trait BarnettSmartProtocol {
     ) -> Result<Self::ZKProofKeyOwnership, CryptoError>;
 
     /// Verify a proof od key ownership
-    fn verify_key_ownership<B: ToBytes>(
+    fn verify_key_ownership<B: CanonicalSerialize>(
         pp: &Self::Parameters,
         pk: &Self::PlayerPublicKey,
         player_public_info: &B,
@@ -101,7 +101,7 @@ pub trait BarnettSmartProtocol {
     ) -> Result<(), CryptoError>;
 
     /// Use all the public keys and zk-proofs to compute a verified aggregate public key
-    fn compute_aggregate_key<B: ToBytes>(
+    fn compute_aggregate_key<B: CanonicalSerialize>(
         pp: &Self::Parameters,
         player_keys_proof_info: &Vec<(Self::PlayerPublicKey, Self::ZKProofKeyOwnership, B)>,
     ) -> Result<Self::AggregatePublicKey, CardProtocolError>;
@@ -191,8 +191,8 @@ pub trait BarnettSmartProtocol {
     fn verify_shuffle(
         pp: &Self::Parameters,
         shared_key: &Self::AggregatePublicKey,
-        original_deck: &Vec<Self::MaskedCard>,
-        shuffled_deck: &Vec<Self::MaskedCard>,
+        original_deck: &[Self::MaskedCard],
+        shuffled_deck: &[Self::MaskedCard],
         proof: &Self::ZKProofShuffle,
     ) -> Result<(), CryptoError>;
 }

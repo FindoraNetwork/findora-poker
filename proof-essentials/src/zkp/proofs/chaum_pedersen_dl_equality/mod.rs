@@ -3,24 +3,24 @@ pub mod prover;
 mod test;
 
 use crate::error::CryptoError;
-use crate::zkp::ArgumentOfKnowledge;
-use ark_ec::ProjectiveCurve;
 use crate::utils::rand::FiatShamirRng;
+use crate::zkp::ArgumentOfKnowledge;
+use ark_ec::{CurveGroup, Group};
 use ark_std::marker::PhantomData;
 use ark_std::rand::Rng;
 use digest::Digest;
 
-pub struct DLEquality<'a, C: ProjectiveCurve> {
+pub struct DLEquality<'a, C: CurveGroup> {
     _group: PhantomData<&'a C>,
 }
 
 #[derive(Copy, Clone)]
-pub struct Parameters<'a, C: ProjectiveCurve> {
+pub struct Parameters<'a, C: CurveGroup> {
     pub g: &'a C::Affine,
     pub h: &'a C::Affine,
 }
 
-impl<'a, C: ProjectiveCurve> Parameters<'a, C> {
+impl<'a, C: CurveGroup> Parameters<'a, C> {
     pub fn new(g: &'a C::Affine, h: &'a C::Affine) -> Self {
         Self { g, h }
     }
@@ -30,19 +30,19 @@ impl<'a, C: ProjectiveCurve> Parameters<'a, C> {
 /// Expects two points $A$ and $B$ such that for some secret $x$ and parameters
 /// $G$ and $H$, $A = xG$ and $B=xH$
 #[derive(Copy, Clone)]
-pub struct Statement<'a, C: ProjectiveCurve>(pub &'a C::Affine, pub &'a C::Affine);
+pub struct Statement<'a, C: CurveGroup>(pub &'a C::Affine, pub &'a C::Affine);
 
-impl<'a, C: ProjectiveCurve> Statement<'a, C> {
+impl<'a, C: CurveGroup> Statement<'a, C> {
     pub fn new(point_a: &'a C::Affine, point_b: &'a C::Affine) -> Self {
         Self(point_a, point_b)
     }
 }
 
-type Witness<C> = <C as ProjectiveCurve>::ScalarField;
+type Witness<C> = <C as Group>::ScalarField;
 
 impl<'a, C> ArgumentOfKnowledge for DLEquality<'a, C>
 where
-    C: ProjectiveCurve,
+    C: CurveGroup,
 {
     type CommonReferenceString = Parameters<'a, C>;
     type Statement = Statement<'a, C>;

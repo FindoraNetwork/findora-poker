@@ -2,15 +2,14 @@ use super::{Parameters, Statement};
 
 use crate::error::CryptoError;
 use crate::homomorphic_encryption::HomomorphicEncryptionScheme;
+use crate::utils::rand::FiatShamirRng;
 use crate::utils::vector_arithmetic::dot_product;
 use crate::vector_commitment::HomomorphicCommitmentScheme;
 use crate::zkp::arguments::scalar_powers;
-use crate::utils::rand::FiatShamirRng;
 use digest::Digest;
 
-use ark_ff::{to_bytes, Field, Zero};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::io::{Read, Write};
+use ark_ff::{Field, Zero};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 
 #[derive(CanonicalDeserialize, CanonicalSerialize)]
 pub struct Proof<Scalar, Enc, Comm>
@@ -48,25 +47,20 @@ where
         let n = statement.shuffled_ciphers[0].len();
         let num_of_diagonals = 2 * m - 1;
 
-        fs_rng.absorb(
-            &to_bytes![
-                b"multi-exponentiation",
-                proof_parameters.public_key,
-                proof_parameters.commit_key,
-                statement.commitments_to_exponents,
-                &statement.product,
-                statement.shuffled_ciphers
-            ]
-            .unwrap(),
-        );
+        fs_rng.absorb(b"multi-exponentiation");
+        fs_rng.absorb(proof_parameters.public_key);
+        fs_rng.absorb(proof_parameters.commit_key);
+        fs_rng.absorb(statement.commitments_to_exponents);
+        fs_rng.absorb(&statement.product);
+        fs_rng.absorb(statement.shuffled_ciphers);
 
-        fs_rng.absorb(&to_bytes![m as u32, n as u32, num_of_diagonals as u32]?);
+        fs_rng.absorb(&(m as u32));
+        fs_rng.absorb(&(n as u32));
+        fs_rng.absorb(&(num_of_diagonals as u32));
 
-        fs_rng.absorb(&to_bytes![
-            self.a_0_commit,
-            self.commit_b_k,
-            self.vector_e_k
-        ]?);
+        fs_rng.absorb(&self.a_0_commit);
+        fs_rng.absorb(&self.commit_b_k);
+        fs_rng.absorb(&self.vector_e_k);
 
         let challenge = Scalar::rand(fs_rng);
 
@@ -95,12 +89,9 @@ where
             )));
         }
 
-        let c_a_x = dot_product(&x_array, &statement.commitments_to_exponents)?;
-        let verifier_commit_a = Comm::commit(
-            &proof_parameters.commit_key,
-            &self.a_blinded,
-            self.r_blinded,
-        )?;
+        let c_a_x = dot_product(&x_array, statement.commitments_to_exponents)?;
+        let verifier_commit_a =
+            Comm::commit(proof_parameters.commit_key, &self.a_blinded, self.r_blinded)?;
 
         let left = c_a_x + self.a_0_commit;
         if left != verifier_commit_a {
@@ -125,8 +116,8 @@ where
 
         let message = *proof_parameters.generator * self.b_blinded;
         let aggregate_masking_cipher = Enc::encrypt(
-            &proof_parameters.encrypt_parameters,
-            &proof_parameters.public_key,
+            proof_parameters.encrypt_parameters,
+            proof_parameters.public_key,
             &message,
             &self.tau_blinded,
         )?;

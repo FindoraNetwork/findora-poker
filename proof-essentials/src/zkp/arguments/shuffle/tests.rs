@@ -7,11 +7,11 @@ mod test {
     use crate::vector_commitment::{pedersen, HomomorphicCommitmentScheme};
     use crate::zkp::{arguments::shuffle, ArgumentOfKnowledge};
 
-    use ark_ff::Zero;
     use crate::utils::rand::FiatShamirRng;
+    use ark_ff::Zero;
+    use ark_std::iter::Iterator;
     use ark_std::{rand::thread_rng, UniformRand};
-    use blake2::Blake2s;
-    use std::iter::Iterator;
+    use blake2::Blake2s256;
 
     // Choose ellitptic curve setting
     type Curve = ark_bn254::G1Projective;
@@ -28,7 +28,7 @@ mod test {
     type ShuffleArgument<'a> = shuffle::ShuffleArgument<'a, Scalar, Enc, Comm>;
     type Parameters<'a> = shuffle::Parameters<'a, Scalar, Enc, Comm>;
 
-    type FS = FiatShamirRng<Blake2s>;
+    type FS = FiatShamirRng<Blake2s256>;
 
     #[test]
     fn test_shuffle_argument() {

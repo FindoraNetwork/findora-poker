@@ -26,7 +26,7 @@ impl Permutation {
     pub fn identity(size: usize) -> Self {
         Self {
             mapping: (0..size).collect(),
-            size: size,
+            size,
         }
     }
 

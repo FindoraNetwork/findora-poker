@@ -1,53 +1,38 @@
 use crate::error::CryptoError;
 use crate::homomorphic_encryption::HomomorphicEncryptionScheme;
 
-use ark_ec::{AffineCurve, ProjectiveCurve};
-use ark_ff::{fields::PrimeField, ToBytes, UniformRand};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::{
-    io::{Read, Write},
-    marker::PhantomData,
-    rand::Rng,
-};
-use std::hash::Hash;
+use ark_ec::{AffineRepr, CurveGroup, Group};
+use ark_ff::{fields::PrimeField, UniformRand};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::hash::Hash;
+use ark_std::ops::Mul;
+use ark_std::{marker::PhantomData, rand::Rng};
 
 pub mod arithmetic_definitions;
 mod tests;
 
-pub struct ElGamal<C: ProjectiveCurve> {
+pub struct ElGamal<C: CurveGroup> {
     _group: PhantomData<C>,
 }
 
 #[derive(Copy, Clone, CanonicalSerialize, CanonicalDeserialize)]
-pub struct Parameters<C: ProjectiveCurve> {
+pub struct Parameters<C: CurveGroup> {
     pub generator: C::Affine,
 }
 
-pub type PublicKey<C> = <C as ProjectiveCurve>::Affine;
+pub type PublicKey<C> = <C as CurveGroup>::Affine;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, CanonicalSerialize, CanonicalDeserialize)]
-pub struct Plaintext<C: ProjectiveCurve>(pub C::Affine);
+pub struct Plaintext<C: CurveGroup>(pub C::Affine);
 
 pub type Generator<C> = Plaintext<C>;
 
-pub type SecretKey<C> = <C as ProjectiveCurve>::ScalarField;
+pub type SecretKey<C> = <C as Group>::ScalarField;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, CanonicalSerialize, CanonicalDeserialize)]
-pub struct Ciphertext<C: ProjectiveCurve>(pub C::Affine, pub C::Affine);
+pub struct Ciphertext<C: CurveGroup>(pub C::Affine, pub C::Affine);
 
-impl<C: ProjectiveCurve> ToBytes for Ciphertext<C> {
-    fn write<W: Write>(&self, mut w: W) -> ark_std::io::Result<()> {
-        self.0.write(&mut w)?;
-        self.1.write(&mut w)?;
-
-        Ok(())
-    }
-}
-
-impl<C: ProjectiveCurve> HomomorphicEncryptionScheme<C::ScalarField> for ElGamal<C>
-where
-    C: ProjectiveCurve,
-{
+impl<C: CurveGroup> HomomorphicEncryptionScheme<C::ScalarField> for ElGamal<C> {
     type Parameters = Parameters<C>;
     type Generator = Generator<C>;
     type PublicKey = PublicKey<C>;
@@ -71,7 +56,7 @@ where
         rng: &mut R,
     ) -> Result<(Self::PublicKey, Self::SecretKey), CryptoError> {
         // get a random element from the scalar field
-        let secret_key: <C as ProjectiveCurve>::ScalarField = C::ScalarField::rand(rng);
+        let secret_key: <C as Group>::ScalarField = C::ScalarField::rand(rng);
 
         // compute secret_key*generator to derive the public key
         let public_key = pp.generator.mul(secret_key).into();
@@ -86,10 +71,10 @@ where
         r: &C::ScalarField,
     ) -> Result<Self::Ciphertext, CryptoError> {
         // compute s = r*pk
-        let s = Plaintext(pk.mul(r.into_repr()).into_affine());
+        let s = Plaintext(pk.mul_bigint(r.into_bigint()).into_affine());
 
         // compute c1 = r*generator
-        let c1 = pp.generator.mul(r.into_repr()).into();
+        let c1 = pp.generator.mul_bigint(r.into_bigint()).into();
 
         // compute c2 = m + s
         let c2 = *message + s;
@@ -102,16 +87,16 @@ where
         sk: &Self::SecretKey,
         ciphertext: &Self::Ciphertext,
     ) -> Result<Self::Plaintext, CryptoError> {
-        let c1: <C as ProjectiveCurve>::Affine = ciphertext.0;
-        let c2: <C as ProjectiveCurve>::Affine = ciphertext.1;
+        let c1: <C as CurveGroup>::Affine = ciphertext.0;
+        let c2: <C as CurveGroup>::Affine = ciphertext.1;
 
         // compute s = secret_key * c1
-        let s = c1.mul(sk.into_repr());
+        let s = c1.mul_bigint(sk.into_bigint());
         let s_inv = -s;
 
         // compute message = c2 - s
         let m = c2 + s_inv.into_affine();
 
-        Ok(Plaintext(m))
+        Ok(Plaintext(m.into()))
     }
 }

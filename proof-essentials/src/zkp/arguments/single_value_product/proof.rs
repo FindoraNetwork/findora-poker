@@ -3,10 +3,9 @@ use super::{Parameters, Statement};
 use crate::error::CryptoError;
 use crate::vector_commitment::HomomorphicCommitmentScheme;
 
-use ark_ff::{to_bytes, Field};
 use crate::utils::rand::FiatShamirRng;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::io::{Read, Write};
+use ark_ff::Field;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use digest::Digest;
 
 #[derive(CanonicalDeserialize, CanonicalSerialize)]
@@ -54,17 +53,16 @@ where
             )));
         }
 
-        fs_rng.absorb(&to_bytes![b"single_value_product_argument"]?);
+        fs_rng.absorb(b"single_value_product_argument");
 
-        //public information
-        fs_rng.absorb(&to_bytes![proof_parameters.commit_key, statement.a_commit]?);
+        // public information
+        fs_rng.absorb(proof_parameters.commit_key);
+        fs_rng.absorb(statement.a_commit);
 
-        //commits
-        fs_rng.absorb(&to_bytes![
-            self.d_commit,
-            self.delta_commit,
-            self.diff_commit
-        ]?);
+        // commits
+        fs_rng.absorb(&self.d_commit);
+        fs_rng.absorb(&self.delta_commit);
+        fs_rng.absorb(&self.diff_commit);
 
         let x = Scalar::rand(fs_rng);
 

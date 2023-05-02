@@ -4,14 +4,14 @@ use barnett_smart_card_protocol::discrete_log_cards;
 use barnett_smart_card_protocol::BarnettSmartProtocol;
 
 use anyhow;
-use ark_ff::{to_bytes, UniformRand};
+use ark_ff::UniformRand;
+use ark_std::collections::HashMap;
+use ark_std::iter::Iterator;
 use ark_std::{rand::Rng, One};
 use proof_essentials::utils::permutation::Permutation;
 use proof_essentials::utils::rand::sample_vector;
 use proof_essentials::zkp::proofs::{chaum_pedersen_dl_equality, schnorr_identification};
 use rand::thread_rng;
-use std::collections::HashMap;
-use std::iter::Iterator;
 use thiserror::Error;
 
 // Choose elliptic curve setting
@@ -236,10 +236,10 @@ fn main() -> anyhow::Result<()> {
     let parameters = CardProtocol::setup(rng, m, n)?;
     let card_mapping = encode_cards(rng, num_of_cards);
 
-    let mut andrija = Player::new(rng, &parameters, &to_bytes![b"Andrija"].unwrap())?;
-    let mut kobi = Player::new(rng, &parameters, &to_bytes![b"Kobi"].unwrap())?;
-    let mut nico = Player::new(rng, &parameters, &to_bytes![b"Nico"].unwrap())?;
-    let mut tom = Player::new(rng, &parameters, &to_bytes![b"Tom"].unwrap())?;
+    let mut andrija = Player::new(rng, &parameters, &b"Andrija".to_vec())?;
+    let mut kobi = Player::new(rng, &parameters, &b"Kobi".to_vec())?;
+    let mut nico = Player::new(rng, &parameters, &b"Nico".to_vec())?;
+    let mut tom = Player::new(rng, &parameters, &b"Tom".to_vec())?;
 
     let players = vec![andrija.clone(), kobi.clone(), nico.clone(), tom.clone()];
 
@@ -261,9 +261,9 @@ fn main() -> anyhow::Result<()> {
         .iter()
         .map(|deck_and_proofs| {
             let mut proof = deck_and_proofs.1;
-            let mut data = Vec::with_capacity(proof.serialized_size());
-            proof.serialize(&mut data).unwrap();
-            proof = CanonicalDeserialize::deserialize(data.as_slice()).unwrap();
+            let mut data = Vec::with_capacity(proof.compressed_size());
+            proof.serialize_compressed(&mut data).unwrap();
+            proof = CanonicalDeserialize::deserialize_compressed(data.as_slice()).unwrap();
             (deck_and_proofs.0, proof.clone())
         })
         .collect();

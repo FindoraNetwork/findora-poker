@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod test {
-
     use crate::error::CryptoError;
-    use crate::zkp::{proofs::schnorr_identification, ArgumentOfKnowledge};
-    use ark_ec::{AffineCurve, ProjectiveCurve};
     use crate::utils::rand::FiatShamirRng;
+    use crate::zkp::{proofs::schnorr_identification, ArgumentOfKnowledge};
+    use ark_ec::CurveGroup;
+    use ark_std::ops::Mul;
     use ark_std::rand::thread_rng;
     use ark_std::UniformRand;
-    use blake2::Blake2s;
+    use blake2::Blake2s256;
     use rand::{prelude::ThreadRng, Rng};
 
     type Curve = ark_bn254::G1Projective;
@@ -15,7 +15,7 @@ mod test {
     type Schnorr<'a> = schnorr_identification::SchnorrIdentification<Curve>;
     type Scalar = ark_bn254::Fr;
     type Parameters = schnorr_identification::Parameters<Curve>;
-    type FS = FiatShamirRng<Blake2s>;
+    type FS = FiatShamirRng<Blake2s256>;
 
     fn setup<R: Rng>(rng: &mut R) -> Result<Parameters, CryptoError> {
         Ok(Curve::rand(rng).into_affine())

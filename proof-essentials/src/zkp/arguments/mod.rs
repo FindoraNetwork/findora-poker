@@ -6,7 +6,7 @@ pub mod single_value_product;
 pub mod zero_value_bilinear_map;
 
 use ark_ff::Field;
-use std::iter;
+use ark_std::iter;
 
 /// Compute the powers of a given scalar $x$ from $x^0$ to $x^(n)$ (included)
 pub fn scalar_powers<F: Field>(x: F, n: usize) -> Vec<F> {

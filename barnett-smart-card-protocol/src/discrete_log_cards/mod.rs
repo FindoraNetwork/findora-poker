@@ -1,24 +1,23 @@
 use super::BarnettSmartProtocol;
 use super::{Mask, Remask, Reveal};
+use ark_std::ops::Mul;
 
 use crate::error::CardProtocolError;
-use ark_serialize::Read;
-use ark_serialize::SerializationError;
-use ark_serialize::Write;
 
 use anyhow::Result;
-use ark_ec::{AffineCurve, ProjectiveCurve};
-use ark_ff::{to_bytes, One, PrimeField, ToBytes};
-use ark_marlin::rng::FiatShamirRng;
+use ark_ec::CurveGroup;
+use ark_ff::{One, PrimeField};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_std::marker::PhantomData;
 use ark_std::rand::Rng;
 use ark_std::Zero;
-use blake2::Blake2s;
+use blake2::Blake2s256;
 use proof_essentials::error::CryptoError;
 use proof_essentials::homomorphic_encryption::{
     el_gamal, el_gamal::ElGamal, HomomorphicEncryptionScheme,
 };
 use proof_essentials::utils::permutation::Permutation;
+use proof_essentials::utils::rand::FiatShamirRng;
 use proof_essentials::vector_commitment::pedersen::PedersenCommitment;
 use proof_essentials::vector_commitment::{pedersen, HomomorphicCommitmentScheme};
 use proof_essentials::zkp::{
@@ -26,7 +25,6 @@ use proof_essentials::zkp::{
     proofs::{chaum_pedersen_dl_equality, schnorr_identification},
     ArgumentOfKnowledge,
 };
-use std::marker::PhantomData;
 
 // mod key_ownership;
 mod masking;
@@ -34,12 +32,12 @@ mod remasking;
 mod reveal;
 mod tests;
 
-pub struct DLCards<'a, C: ProjectiveCurve> {
+pub struct DLCards<'a, C: CurveGroup> {
     _group: &'a PhantomData<C>,
 }
 
 #[derive(CanonicalDeserialize, CanonicalSerialize)]
-pub struct Parameters<C: ProjectiveCurve> {
+pub struct Parameters<C: CurveGroup> {
     m: usize,
     n: usize,
     enc_parameters: el_gamal::Parameters<C>,
@@ -47,7 +45,7 @@ pub struct Parameters<C: ProjectiveCurve> {
     generator: el_gamal::Generator<C>,
 }
 
-impl<C: ProjectiveCurve> Parameters<C> {
+impl<C: CurveGroup> Parameters<C> {
     pub fn new(
         m: usize,
         n: usize,
@@ -82,13 +80,13 @@ pub type MaskedCard<C> = el_gamal::Ciphertext<C>;
 /// then be aggregated to reveal the card.
 pub type RevealToken<C> = el_gamal::Plaintext<C>;
 
-const KEY_OWN_RNG_SEED: &'static [u8] = b"Key Ownership Proof";
-const MASKING_RNG_SEED: &'static [u8] = b"Masking Proof";
-const REMASKING_RNG_SEED: &'static [u8] = b"Remasking Proof";
-const REVEAL_RNG_SEED: &'static [u8] = b"Reveal Proof";
-const SHUFFLE_RNG_SEED: &'static [u8] = b"Shuffle Proof";
+const KEY_OWN_RNG_SEED: &[u8] = b"Key Ownership Proof";
+const MASKING_RNG_SEED: &[u8] = b"Masking Proof";
+const REMASKING_RNG_SEED: &[u8] = b"Remasking Proof";
+const REVEAL_RNG_SEED: &[u8] = b"Reveal Proof";
+const SHUFFLE_RNG_SEED: &[u8] = b"Shuffle Proof";
 
-impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
+impl<'a, C: CurveGroup> BarnettSmartProtocol for DLCards<'a, C> {
     type Scalar = C::ScalarField;
     type Enc = ElGamal<C>;
     type Comm = PedersenCommitment<C>;
@@ -134,15 +132,15 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         Ok((pk, sk))
     }
 
-    fn prove_key_ownership<B: ToBytes, R: Rng>(
+    fn prove_key_ownership<B: CanonicalSerialize, R: Rng>(
         rng: &mut R,
         pp: &Self::Parameters,
         pk: &Self::PlayerPublicKey,
         sk: &Self::PlayerSecretKey,
         player_public_info: &B,
     ) -> Result<Self::ZKProofKeyOwnership, CryptoError> {
-        let mut fs_rng =
-            FiatShamirRng::<Blake2s>::from_seed(&to_bytes![KEY_OWN_RNG_SEED, player_public_info]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&KEY_OWN_RNG_SEED);
+        fs_rng.absorb(player_public_info);
 
         schnorr_identification::SchnorrIdentification::prove(
             rng,
@@ -153,14 +151,14 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         )
     }
 
-    fn verify_key_ownership<B: ToBytes>(
+    fn verify_key_ownership<B: CanonicalSerialize>(
         pp: &Self::Parameters,
         pk: &Self::PlayerPublicKey,
         player_public_info: &B,
         proof: &Self::ZKProofKeyOwnership,
     ) -> Result<(), CryptoError> {
-        let mut fs_rng =
-            FiatShamirRng::<Blake2s>::from_seed(&to_bytes![KEY_OWN_RNG_SEED, player_public_info]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&KEY_OWN_RNG_SEED);
+        fs_rng.absorb(player_public_info);
         schnorr_identification::SchnorrIdentification::verify(
             &pp.enc_parameters.generator,
             pk,
@@ -169,19 +167,17 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         )
     }
 
-    fn compute_aggregate_key<B: ToBytes>(
+    fn compute_aggregate_key<B: CanonicalSerialize>(
         pp: &Self::Parameters,
         player_keys_proof_info: &Vec<(Self::PlayerPublicKey, Self::ZKProofKeyOwnership, B)>,
     ) -> Result<Self::AggregatePublicKey, CardProtocolError> {
-        let zero = Self::PlayerPublicKey::zero();
-
-        let mut acc = zero;
+        let mut acc = C::zero();
         for (pk, proof, player_public_info) in player_keys_proof_info {
             Self::verify_key_ownership(pp, pk, player_public_info, proof)?;
-            acc = acc + *pk;
+            acc += *pk;
         }
 
-        Ok(acc)
+        Ok(acc.into_affine())
     }
 
     fn mask<R: Rng>(
@@ -200,11 +196,11 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         // Map to Chaum-Pedersen statement
         let minus_one = -Self::Scalar::one();
         let negative_original = original_card.0.mul(minus_one).into_affine();
-        let statement_cipher = masked_card.1 + negative_original;
+        let statement_cipher = (masked_card.1 + negative_original).into_affine();
         let cp_statement =
             chaum_pedersen_dl_equality::Statement::new(&masked_card.0, &statement_cipher);
 
-        let mut fs_rng = FiatShamirRng::<Blake2s>::from_seed(&to_bytes![MASKING_RNG_SEED]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&MASKING_RNG_SEED);
         let proof = chaum_pedersen_dl_equality::DLEquality::prove(
             rng,
             &cp_parameters,
@@ -230,11 +226,11 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         // Map to Chaum-Pedersen statement
         let minus_one = -Self::Scalar::one();
         let negative_original = card.0.mul(minus_one).into_affine();
-        let statement_cipher = masked_card.1 + negative_original;
+        let statement_cipher = (masked_card.1 + negative_original).into_affine();
         let cp_statement =
             chaum_pedersen_dl_equality::Statement::new(&masked_card.0, &statement_cipher);
 
-        let mut fs_rng = FiatShamirRng::<Blake2s>::from_seed(&to_bytes![MASKING_RNG_SEED]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&MASKING_RNG_SEED);
         chaum_pedersen_dl_equality::DLEquality::verify(
             &cp_parameters,
             &cp_statement,
@@ -263,7 +259,7 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         let cp_statement =
             chaum_pedersen_dl_equality::Statement::new(&statement_cipher.0, &statement_cipher.1);
 
-        let mut fs_rng = FiatShamirRng::<Blake2s>::from_seed(&to_bytes![REMASKING_RNG_SEED]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&REMASKING_RNG_SEED);
         let proof = chaum_pedersen_dl_equality::DLEquality::prove(
             rng,
             &cp_parameters,
@@ -293,7 +289,7 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         let cp_statement =
             chaum_pedersen_dl_equality::Statement::new(&statement_cipher.0, &statement_cipher.1);
 
-        let mut fs_rng = FiatShamirRng::<Blake2s>::from_seed(&to_bytes![REMASKING_RNG_SEED]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&REMASKING_RNG_SEED);
         chaum_pedersen_dl_equality::DLEquality::verify(
             &cp_parameters,
             &cp_statement,
@@ -309,8 +305,13 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         pk: &Self::PlayerPublicKey,
         masked_card: &Self::MaskedCard,
     ) -> Result<(Self::RevealToken, Self::ZKProofReveal), CardProtocolError> {
-        let reveal_token: RevealToken<C> =
-            el_gamal::Plaintext(masked_card.0.into().mul(sk.into_repr()).into_affine());
+        let reveal_token: RevealToken<C> = el_gamal::Plaintext(
+            masked_card
+                .0
+                .into()
+                .mul_bigint(sk.into_bigint())
+                .into_affine(),
+        );
 
         // Map to Chaum-Pedersen parameters
         let cp_parameters = chaum_pedersen_dl_equality::Parameters::new(
@@ -321,7 +322,7 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         // Map to Chaum-Pedersen parameters
         let cp_statement = chaum_pedersen_dl_equality::Statement::new(&reveal_token.0, pk);
 
-        let mut fs_rng = FiatShamirRng::<Blake2s>::from_seed(&to_bytes![REVEAL_RNG_SEED]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&REVEAL_RNG_SEED);
         let proof = chaum_pedersen_dl_equality::DLEquality::prove(
             rng,
             &cp_parameters,
@@ -349,7 +350,7 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         // Map to Chaum-Pedersen parameters
         let cp_statement = chaum_pedersen_dl_equality::Statement::new(&reveal_token.0, pk);
 
-        let mut fs_rng = FiatShamirRng::<Blake2s>::from_seed(&to_bytes![REVEAL_RNG_SEED]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&REVEAL_RNG_SEED);
         chaum_pedersen_dl_equality::DLEquality::verify(
             &cp_parameters,
             &cp_statement,
@@ -390,12 +391,12 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
         masking_factors: &Vec<Self::Scalar>,
         permutation: &Permutation,
     ) -> Result<(Vec<Self::MaskedCard>, Self::ZKProofShuffle), CardProtocolError> {
-        let permuted_deck = permutation.permute_array(&deck);
+        let permuted_deck = permutation.permute_array(deck);
         let masked_shuffled = permuted_deck
             .iter()
             .zip(masking_factors.iter())
             .map(|(masked_card, masking_factor)| {
-                masked_card.remask(&pp.enc_parameters, &shared_key, masking_factor)
+                masked_card.remask(&pp.enc_parameters, shared_key, masking_factor)
             })
             .collect::<Result<Vec<_>, CardProtocolError>>()?;
 
@@ -410,7 +411,7 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
 
         let witness = shuffle::Witness::new(permutation, masking_factors);
 
-        let mut fs_rng = FiatShamirRng::<Blake2s>::from_seed(&to_bytes![SHUFFLE_RNG_SEED]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&SHUFFLE_RNG_SEED);
         let proof = shuffle::ShuffleArgument::prove(
             rng,
             &shuffle_parameters,
@@ -425,8 +426,8 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
     fn verify_shuffle(
         pp: &Self::Parameters,
         shared_key: &Self::AggregatePublicKey,
-        original_deck: &Vec<Self::MaskedCard>,
-        shuffled_deck: &Vec<Self::MaskedCard>,
+        original_deck: &[Self::MaskedCard],
+        shuffled_deck: &[Self::MaskedCard],
         proof: &Self::ZKProofShuffle,
     ) -> Result<(), CryptoError> {
         let shuffle_parameters = shuffle::Parameters::new(
@@ -436,9 +437,11 @@ impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
             &pp.generator,
         );
 
-        let shuffle_statement = shuffle::Statement::new(original_deck, shuffled_deck, pp.m, pp.n);
+        let original_deck = original_deck.to_vec();
+        let shuffled_deck = shuffled_deck.to_vec();
+        let shuffle_statement = shuffle::Statement::new(&original_deck, &shuffled_deck, pp.m, pp.n);
 
-        let mut fs_rng = FiatShamirRng::<Blake2s>::from_seed(&to_bytes![SHUFFLE_RNG_SEED]?);
+        let mut fs_rng = FiatShamirRng::<Blake2s256>::from_seed(&SHUFFLE_RNG_SEED);
         shuffle::ShuffleArgument::verify(
             &shuffle_parameters,
             &shuffle_statement,

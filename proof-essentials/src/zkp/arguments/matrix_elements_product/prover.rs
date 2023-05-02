@@ -8,8 +8,8 @@ use crate::zkp::{
     ArgumentOfKnowledge,
 };
 
-use ark_ff::{to_bytes, Field};
 use crate::utils::rand::FiatShamirRng;
+use ark_ff::Field;
 use ark_std::rand::Rng;
 use digest::Digest;
 
@@ -45,13 +45,13 @@ where
         rng: &mut R,
         fs_rng: &mut FiatShamirRng<D>,
     ) -> Result<Proof<Scalar, Comm>, CryptoError> {
-        fs_rng.absorb(&to_bytes![b"matrix_elements_product"]?);
+        fs_rng.absorb(b"matrix_elements_product");
 
         let s = Scalar::rand(rng);
 
         let mut product_along_rows = vec![Scalar::one(); self.parameters.n];
         for x in self.witness.matrix_a {
-            product_along_rows = compute_hadamard_product(&x, &product_along_rows)?;
+            product_along_rows = compute_hadamard_product(x, &product_along_rows)?;
         }
 
         let b_commit = Comm::commit(self.parameters.commit_key, &product_along_rows, s)?;
@@ -65,7 +65,7 @@ where
         );
 
         let hadamard_product_statement =
-            hadamard_product::Statement::new(&self.statement.commitments_to_a, b_commit);
+            hadamard_product::Statement::new(self.statement.commitments_to_a, b_commit);
 
         let hadamard_product_witness = hadamard_product::Witness::new(
             self.witness.matrix_a,

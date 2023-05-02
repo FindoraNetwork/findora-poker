@@ -7,9 +7,9 @@ mod test {
     use crate::zkp::{arguments::single_value_product, ArgumentOfKnowledge};
 
     use crate::utils::rand::FiatShamirRng;
+    use ark_std::iter::Iterator;
     use ark_std::{rand::thread_rng, UniformRand};
-    use blake2::Blake2s;
-    use std::iter::Iterator;
+    use blake2::Blake2s256;
 
     // Choose ellitptic curve setting
     type Curve = ark_bn254::G1Projective;
@@ -22,7 +22,7 @@ mod test {
     type SingleValueProd<'a> = single_value_product::SingleValueProductArgument<'a, Scalar, Comm>;
     type Parameters<'a> = single_value_product::Parameters<'a, Scalar, Comm>;
 
-    type FS = FiatShamirRng<Blake2s>;
+    type FS = FiatShamirRng<Blake2s256>;
 
     #[test]
     fn test_single_product_argument() {

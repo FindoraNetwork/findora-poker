@@ -1,5 +1,5 @@
 use ark_ff::Field;
-use ark_serialize::CanonicalSerialize;
+use ark_serialize::{CanonicalSerialize, Compress};
 use merlin::Transcript;
 
 pub(crate) trait TranscriptProtocol {
@@ -11,7 +11,7 @@ pub(crate) trait TranscriptProtocol {
 impl TranscriptProtocol for Transcript {
     fn append(&mut self, label: &'static [u8], item: &impl CanonicalSerialize) {
         let mut bytes = Vec::new();
-        item.serialize(&mut bytes).unwrap();
+        item.serialize_with_mode(&mut bytes, Compress::Yes).unwrap();
         self.append_message(label, &bytes)
     }
 
@@ -20,7 +20,7 @@ impl TranscriptProtocol for Transcript {
         F: Field,
     {
         let example = F::one();
-        let size = example.serialized_size();
+        let size = example.serialized_size(Compress::Yes);
         // let size = F::size_in_bits() / 8;
         let mut buf = vec![0u8; size];
         self.challenge_bytes(label, &mut buf);
@@ -32,11 +32,11 @@ impl TranscriptProtocol for Transcript {
 mod transcript_test {
     use ark_bn254::Fr;
     use ark_ff::One;
-    use ark_serialize::CanonicalSerialize;
+    use ark_serialize::{CanonicalSerialize, Compress};
     #[test]
     fn f_size() {
         let one = Fr::one();
-        let serialized_size = one.serialized_size();
+        let serialized_size = one.serialized_size(Compress::Yes);
         let uncompressed_size = one.uncompressed_size();
 
         // expect serialized_size&uncompressed_size to be same for the field

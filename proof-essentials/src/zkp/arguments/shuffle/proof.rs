@@ -7,10 +7,9 @@ use crate::vector_commitment::HomomorphicCommitmentScheme;
 use crate::zkp::arguments::scalar_powers;
 use crate::zkp::arguments::{matrix_elements_product as product_argument, multi_exponentiation};
 
-use ark_ff::{to_bytes, Field};
 use crate::utils::rand::FiatShamirRng;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::io::{Read, Write};
+use ark_ff::Field;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use digest::Digest;
 
 #[derive(CanonicalDeserialize, CanonicalSerialize)]
@@ -40,33 +39,26 @@ where
     ) -> Result<(), CryptoError> {
         statement.is_valid()?;
 
-        fs_rng.absorb(&to_bytes![b"shuffle_argument"]?);
+        fs_rng.absorb(b"shuffle_argument");
 
         // Public data
-        fs_rng.absorb(&to_bytes![
-            proof_parameters.public_key,
-            proof_parameters.commit_key
-        ]?);
+        fs_rng.absorb(proof_parameters.public_key);
+        fs_rng.absorb(proof_parameters.commit_key);
 
         // statement
-        fs_rng.absorb(
-            &to_bytes![
-                statement.input_ciphers,
-                statement.shuffled_ciphers,
-                statement.m as u32,
-                statement.n as u32
-            ]
-            .unwrap(),
-        );
+        fs_rng.absorb(statement.input_ciphers);
+        fs_rng.absorb(statement.shuffled_ciphers);
+        fs_rng.absorb(&(statement.m as u32));
+        fs_rng.absorb(&(statement.n as u32));
 
         // round 1
-        fs_rng.absorb(&to_bytes![self.a_commits]?);
+        fs_rng.absorb(&self.a_commits);
         let x = Scalar::rand(fs_rng);
 
         let challenge_powers = scalar_powers(x, statement.m * statement.n)[1..].to_vec();
 
         // round 2
-        fs_rng.absorb(&to_bytes![self.b_commits]?);
+        fs_rng.absorb(&self.b_commits);
         let y = Scalar::rand(fs_rng);
         let z = Scalar::rand(fs_rng);
 

@@ -1,21 +1,21 @@
 #[cfg(test)]
 mod test {
-
     use crate::error::CryptoError;
+    use crate::utils::rand::FiatShamirRng;
     use crate::zkp::proofs::chaum_pedersen_dl_equality;
     use crate::zkp::proofs::chaum_pedersen_dl_equality::DLEquality;
     use crate::zkp::ArgumentOfKnowledge;
-    use ark_ec::{AffineCurve, ProjectiveCurve};
-    use crate::utils::rand::FiatShamirRng;
+    use ark_ec::CurveGroup;
     use ark_std::{rand::thread_rng, UniformRand};
-    use blake2::Blake2s;
+    use blake2::Blake2s256;
     use rand::{prelude::ThreadRng, Rng};
+    use std::ops::Mul;
 
     type AffinePoint = ark_bn254::G1Affine;
     type Curve = ark_bn254::G1Projective;
     type Scalar = ark_bn254::Fr;
     type Parameters<'a> = chaum_pedersen_dl_equality::Parameters<'a, Curve>;
-    type FS = FiatShamirRng<Blake2s>;
+    type FS = FiatShamirRng<Blake2s256>;
 
     fn setup<R: Rng>(rng: &mut R) -> (AffinePoint, AffinePoint) {
         (

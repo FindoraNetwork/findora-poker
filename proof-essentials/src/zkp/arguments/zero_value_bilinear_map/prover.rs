@@ -1,11 +1,11 @@
 use super::{proof::Proof, BilinearMap, Parameters, Statement, Witness};
 
 use crate::error::CryptoError;
+use crate::utils::rand::FiatShamirRng;
 use crate::utils::{rand::sample_vector, vector_arithmetic::dot_product};
 use crate::vector_commitment::HomomorphicCommitmentScheme;
 use crate::zkp::arguments::scalar_powers;
-use ark_ff::{to_bytes, Field};
-use crate::utils::rand::FiatShamirRng;
+use ark_ff::Field;
 use digest::Digest;
 
 use rand::Rng;
@@ -42,7 +42,7 @@ where
         rng: &mut R,
         fs_rng: &mut FiatShamirRng<D>,
     ) -> Result<Proof<Scalar, Comm>, CryptoError> {
-        fs_rng.absorb(&to_bytes![b"zero_argument"]?);
+        fs_rng.absorb(b"zero_argument");
 
         let a_0: Vec<Scalar> = sample_vector(rng, self.parameters.n);
         let b_m: Vec<Scalar> = sample_vector(rng, self.parameters.n);
@@ -80,27 +80,18 @@ where
             .collect::<Result<Vec<_>, CryptoError>>()?;
 
         // Public parameters
-        fs_rng.absorb(
-            &to_bytes![
-                self.parameters.commit_key,
-                self.parameters.m as u32,
-                self.parameters.n as u32
-            ]
-            .unwrap(),
-        );
+        fs_rng.absorb(self.parameters.commit_key);
+        fs_rng.absorb(&(self.parameters.m as u32));
+        fs_rng.absorb(&(self.parameters.n as u32));
 
         // Random values
-        fs_rng.absorb(&to_bytes![a_0_commit, b_m_commit]?);
+        fs_rng.absorb(&a_0_commit);
+        fs_rng.absorb(&b_m_commit);
 
         // Commitments
-        fs_rng.absorb(
-            &to_bytes![
-                self.statement.commitment_to_a,
-                self.statement.commitment_to_b,
-                vector_of_committed_diagonals
-            ]
-            .unwrap(),
-        );
+        fs_rng.absorb(self.statement.commitment_to_a);
+        fs_rng.absorb(self.statement.commitment_to_b);
+        fs_rng.absorb(&vector_of_committed_diagonals);
 
         let x = Scalar::rand(fs_rng);
 
@@ -125,7 +116,7 @@ where
         for i in 0..self.parameters.n {
             let mut poly = a_0[i];
             for j in 0..self.parameters.m {
-                poly = poly + self.witness.matrix_a[j][i] * first_m_non_zero_powers[j];
+                poly += self.witness.matrix_a[j][i] * first_m_non_zero_powers[j];
             }
             a_blinded.push(poly);
         }
@@ -134,15 +125,15 @@ where
         for i in 0..self.parameters.n {
             let mut poly = b_m[i];
             for j in 0..self.parameters.m {
-                poly = poly + self.witness.matrix_b[j][i] * first_m_non_zero_powers_reversed[j];
+                poly += self.witness.matrix_b[j][i] * first_m_non_zero_powers_reversed[j];
             }
             b_blinded.push(poly);
         }
 
         let r_blinded =
-            r_0 + dot_product(&self.witness.randoms_for_a_commit, &first_m_non_zero_powers)?;
+            r_0 + dot_product(self.witness.randoms_for_a_commit, &first_m_non_zero_powers)?;
         let s_blinded = dot_product(
-            &self.witness.randoms_for_b_commit,
+            self.witness.randoms_for_b_commit,
             &first_m_non_zero_powers_reversed,
         )? + s_m;
         let t_blinded = dot_product(&t, &challenge_powers)?;
@@ -180,7 +171,7 @@ where
         let num_of_diagonals = 2 * m - 1;
 
         let mut diagonal_sums = vec![Scalar::zero(); num_of_diagonals];
-        let center = num_of_diagonals / 2 as usize;
+        let center = num_of_diagonals / 2_usize;
 
         for d in 1..m {
             let mut tmp_product1 = Scalar::zero();
@@ -191,14 +182,14 @@ where
                     .bilinear_map
                     .compute_mapping(&a_chunks[i - d], &b_chunks[i])
                     .unwrap();
-                tmp_product1 = tmp_product1 + dot;
+                tmp_product1 += dot;
 
                 let dot = self
                     .statement
                     .bilinear_map
                     .compute_mapping(&a_chunks[i], &b_chunks[i - d])
                     .unwrap();
-                tmp_product2 = tmp_product2 + dot;
+                tmp_product2 += dot;
             }
 
             diagonal_sums[center - d] = tmp_product1;

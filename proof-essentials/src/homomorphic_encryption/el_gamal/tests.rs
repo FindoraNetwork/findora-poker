@@ -3,8 +3,8 @@ mod test {
     use super::super::super::{el_gamal, HomomorphicEncryptionScheme};
     use crate::utils::rand::sample_vector;
 
+    use ark_std::ops::Mul;
     use ark_std::rand::thread_rng;
-    use std::ops::Mul;
 
     // Define type aliases for succinctness
     type Curve = ark_bn254::G1Projective;

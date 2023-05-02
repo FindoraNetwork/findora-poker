@@ -4,10 +4,9 @@ use crate::error::CryptoError;
 use crate::vector_commitment::HomomorphicCommitmentScheme;
 use crate::zkp::arguments::{hadamard_product, single_value_product};
 
-use ark_ff::{to_bytes, Field};
 use crate::utils::rand::FiatShamirRng;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
-use ark_std::io::{Read, Write};
+use ark_ff::Field;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use digest::Digest;
 
 #[derive(CanonicalDeserialize, CanonicalSerialize)]
@@ -33,7 +32,7 @@ where
         fs_rng: &mut FiatShamirRng<D>,
     ) -> Result<(), CryptoError> {
         statement.is_valid(proof_parameters)?;
-        fs_rng.absorb(&to_bytes![b"matrix_elements_product"]?);
+        fs_rng.absorb(b"matrix_elements_product");
 
         // Verifiy hadamrd product argument
         let hadamard_product_parameters = hadamard_product::Parameters::new(
