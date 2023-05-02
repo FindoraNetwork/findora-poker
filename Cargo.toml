@@ -1,0 +1,37 @@
+[workspace]
+
+members = [
+    "proof-essentials",
+    "barnett-smart-card-protocol"
+]
+
+resolver = "2"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+incremental = true
+panic = 'abort'
+
+[profile.bench]
+opt-level = 3
+debug = false
+rpath = false
+lto = "thin"
+incremental = true
+debug-assertions = false
+
+[profile.dev]
+opt-level = 3
+lto = "thin"
+incremental = true
+debug-assertions = true
+debug = true
+panic = 'abort'
+
+[profile.test]
+opt-level = 2
+lto = "off"
+incremental = true
+debug-assertions = true
+debug = true
