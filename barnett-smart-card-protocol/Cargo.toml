@@ -16,6 +16,7 @@ merlin = "3.0.0"
 proof-essentials = { path = "../proof-essentials"}
 rand = "0.8.4"
 thiserror = "1.0.30"
+base64 = "0.12"
 
 [dev-dependencies]
 ark-bn254 = "0.4.0"

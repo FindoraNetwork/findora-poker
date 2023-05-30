@@ -212,7 +212,6 @@ impl<'a, C: CurveGroup> BarnettSmartProtocol for DLCards<'a, C> {
         Ok((masked_card, proof))
     }
 
-
     fn mask_only<R: Rng>(
         pp: &Self::Parameters,
         shared_key: &Self::AggregatePublicKey,
