@@ -81,6 +81,12 @@ mod test {
             Err(CryptoError::ProofVerificationError(String::from(
                 "Schnorr Identification"
             )))
+        );
+        
+        let player_name = player_name.to_vec();
+        assert_eq!(
+            Ok(()),
+            CardProtocol::verify_key_ownership(&parameters, &pk, &player_name, &p1_keyproof)
         )
     }
 

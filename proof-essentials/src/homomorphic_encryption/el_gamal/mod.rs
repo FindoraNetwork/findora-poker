@@ -11,6 +11,7 @@ use ark_std::{marker::PhantomData, rand::Rng};
 pub mod arithmetic_definitions;
 mod tests;
 
+#[derive(Clone)]
 pub struct ElGamal<C: CurveGroup> {
     _group: PhantomData<C>,
 }
