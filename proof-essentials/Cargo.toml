@@ -4,6 +4,7 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
+serde = { version = "1.0.162", features = ["derive"]}
 ark-ec = "0.4.0"
 ark-ff = "0.4.0"
 ark-serialize = { version = "0.4.0", features = ["derive"] }
@@ -14,6 +15,8 @@ thiserror = "1.0.30"
 blake2 = { version = "0.10", default-features = false }
 digest = { version = "0.10" }
 rand_chacha = { version = "0.3.0", default-features = false }
+base64 = "0.12"
+hex = "0.4.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

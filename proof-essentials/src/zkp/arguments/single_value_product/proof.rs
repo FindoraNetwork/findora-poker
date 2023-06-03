@@ -8,7 +8,7 @@ use ark_ff::Field;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use digest::Digest;
 
-#[derive(CanonicalDeserialize, CanonicalSerialize)]
+#[derive(Clone, CanonicalDeserialize, CanonicalSerialize)]
 pub struct Proof<Scalar, Comm>
 where
     Scalar: Field,

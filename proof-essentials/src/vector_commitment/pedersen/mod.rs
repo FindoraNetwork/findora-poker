@@ -10,6 +10,7 @@ use rand::Rng;
 pub mod arithmetic_definitions;
 mod tests;
 
+#[derive(Clone)]
 pub struct PedersenCommitment<C: CurveGroup> {
     _curve: PhantomData<C>,
 }

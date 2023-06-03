@@ -116,6 +116,15 @@ pub trait BarnettSmartProtocol {
         alpha: &Self::Scalar,
     ) -> Result<(Self::MaskedCard, Self::ZKProofMasking), CardProtocolError>;
 
+    /// Use the shared public key and a (private) random scalar `alpha` to mask a card.
+    /// Returns a masked card and a zk-proof that the masking operation was applied correctly.
+    fn mask_only(
+        pp: &Self::Parameters,
+        shared_key: &Self::AggregatePublicKey,
+        original_card: &Self::Card,
+        alpha: &Self::Scalar,
+    ) -> Result<Self::MaskedCard, CardProtocolError>;
+
     /// Verify a proof of masking
     fn verify_mask(
         pp: &Self::Parameters,

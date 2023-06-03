@@ -11,7 +11,7 @@ use digest::Digest;
 use ark_ff::{Field, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 
-#[derive(CanonicalDeserialize, CanonicalSerialize)]
+#[derive(Clone, CanonicalDeserialize, CanonicalSerialize)]
 pub struct Proof<Scalar, Enc, Comm>
 where
     Scalar: Field,

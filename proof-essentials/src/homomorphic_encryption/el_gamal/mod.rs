@@ -7,10 +7,12 @@ use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::hash::Hash;
 use ark_std::ops::Mul;
 use ark_std::{marker::PhantomData, rand::Rng};
+use serde::{Deserialize, Serialize};
 
 pub mod arithmetic_definitions;
 mod tests;
 
+#[derive(Clone)]
 pub struct ElGamal<C: CurveGroup> {
     _group: PhantomData<C>,
 }
@@ -29,7 +31,18 @@ pub type Generator<C> = Plaintext<C>;
 
 pub type SecretKey<C> = <C as Group>::ScalarField;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Serialize,
+    Deserialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+)]
 pub struct Ciphertext<C: CurveGroup>(pub C::Affine, pub C::Affine);
 
 impl<C: CurveGroup> HomomorphicEncryptionScheme<C::ScalarField> for ElGamal<C> {
