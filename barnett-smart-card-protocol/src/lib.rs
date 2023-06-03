@@ -118,7 +118,7 @@ pub trait BarnettSmartProtocol {
 
     /// Use the shared public key and a (private) random scalar `alpha` to mask a card.
     /// Returns a masked card and a zk-proof that the masking operation was applied correctly.
-    fn mask_only<R: Rng>(
+    fn mask_only(
         pp: &Self::Parameters,
         shared_key: &Self::AggregatePublicKey,
         original_card: &Self::Card,

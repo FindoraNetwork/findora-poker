@@ -82,7 +82,7 @@ mod test {
                 "Schnorr Identification"
             )))
         );
-        
+
         let player_name = player_name.to_vec();
         assert_eq!(
             Ok(()),
